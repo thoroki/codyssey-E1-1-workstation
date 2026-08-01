@@ -1367,39 +1367,242 @@ http://localhost:8084
 ![Compose development 환경 변수 적용 결과](evidence/compose/20_compose-environment-development.png)
 
 
-절대경로 상대경로 어떨때
-* 터미널에서 기본 명령어로 폴더/파일 생성·이동·삭제를 수행한 흔적이 있는가?
-*  파일 권한 변경 결과가 확인되는가?
-*  docker --version이 출력되고, Docker가 동작 가능한 상태인가?
-*  docker run hello-world가 정상 실행되는가?
-*  이미지/컨테이너 목록 확인 및 정리 흔적이 있는가?
-*  Dockerfile로 이미지 빌드가 가능한가?
-*  매핑된 포트로 접속이 가능한가?
-*  Docker 볼륨 데이터가 컨테이너 삭제 후에도 유지되는가?
-*  Git 설정 및 GitHub 연동이 확인되는가?
-* 터미널에서 기본 명령어로 폴더/파일 생성·이동·삭제를 수행한 흔적이 있는가?
-*  파일 권한 변경 결과가 확인되는가?
-*  docker --version이 출력되고, Docker가 동작 가능한 상태인가?
-*  docker run hello-world가 정상 실행되는가?
-*  이미지/컨테이너 목록 확인 및 정리 흔적이 있는가?
-*  Dockerfile로 이미지 빌드가 가능한가?
-*  매핑된 포트로 접속이 가능한가?
-*  Docker 볼륨 데이터가 컨테이너 삭제 후에도 유지되는가?
-*  Git 설정 및 GitHub 연동이 확인되는가?
+
+## 21. GitHub SSH 키 설정 및 SSH 방식 push
+
+기존에는 HTTPS 주소와 Personal Access Token을 사용하여 GitHub에 push했다.
+
+이번 실습에서는 SSH 키를 생성하고 공개 키를 GitHub 계정에 등록한 뒤, 원격 저장소 주소를 HTTPS에서 SSH 형식으로 변경하여 비밀번호나 토큰 입력 없이 push할 수 있도록 설정했다.
+
+### 21.1 기존 SSH 키 확인
+
+먼저 현재 사용자 계정에 SSH 키가 존재하는지 확인했다.
+
+```bash
+ls -al ~/.ssh
+```
+
+다음과 같은 파일이 있는지 확인했다.
+
+```text
+id_ed25519
+id_ed25519.pub
+```
+
+- `id_ed25519`: 개인 키
+- `id_ed25519.pub`: 공개 키
+
+개인 키는 외부에 공개하거나 GitHub 저장소에 올리면 안 된다.
+
+### 21.2 SSH 키 생성
+
+기존 SSH 키가 없어서 Ed25519 방식의 새 SSH 키를 생성했다.
+
+```bash
+ssh-keygen -t ed25519 -C "GitHub 등록 이메일"
+```
+
+키 저장 위치는 기본 경로를 사용했다.
+
+```text
+~/.ssh/id_ed25519
+```
+
+생성된 파일은 다음과 같다.
+
+```text
+~/.ssh/id_ed25519
+~/.ssh/id_ed25519.pub
+```
+
+### 21.3 SSH agent에 개인 키 등록
+
+SSH agent를 실행했다.
+
+```bash
+eval "$(ssh-agent -s)"
+```
+
+macOS 키체인과 SSH agent에 개인 키를 등록했다.
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+등록된 키를 확인했다.
+
+```bash
+ssh-add -l
+```
+
+확인 결과 SSH 키의 지문과 `ED25519` 형식이 출력되었다.
+
+### 21.4 공개 키 복사
+
+GitHub 계정에 등록하기 위해 공개 키를 클립보드에 복사했다.
+
+```bash
+pbcopy < ~/.ssh/id_ed25519.pub
+```
+
+공개 키 파일인 `id_ed25519.pub`만 GitHub에 등록했으며, 개인 키인 `id_ed25519`는 로컬 컴퓨터에만 보관했다.
+
+### 21.5 GitHub에 공개 키 등록
+
+GitHub에서 다음 메뉴로 이동했다.
+
+```text
+Settings
+→ SSH and GPG keys
+→ New SSH key
+```
+
+다음 항목을 입력했다.
+
+```text
+Title: heoyulan MacBook Air
+Key type: Authentication Key
+Key: id_ed25519.pub 공개 키 내용
+```
+
+공개 키 등록 후 GitHub 계정이 로컬 개인 키를 이용한 SSH 인증을 허용하도록 설정했다.
+
+### 21.6 GitHub SSH 연결 테스트
+
+다음 명령으로 GitHub SSH 인증을 테스트했다.
+
+```bash
+ssh -T git@github.com
+```
+
+처음 연결할 때 GitHub 호스트를 신뢰할 것인지 묻는 메시지가 표시되어 `yes`를 입력했다.
+
+정상 인증 결과:
+
+```text
+Hi thoroki! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+이 메시지는 SSH 인증에는 성공했지만 GitHub가 일반적인 서버 셸 접속은 제공하지 않는다는 뜻이다.
+
+### 21.7 기존 HTTPS 원격 주소 확인
+
+현재 Git 원격 저장소 주소를 확인했다.
+
+```bash
+git remote -v
+```
+
+변경 전 원격 주소:
+
+```text
+origin  https://github.com/thoroki/codyssey-E1-1-workstation.git (fetch)
+origin  https://github.com/thoroki/codyssey-E1-1-workstation.git (push)
+```
+
+### 21.8 원격 저장소 주소를 SSH로 변경
+
+기존 `origin`의 HTTPS 주소를 SSH 주소로 변경했다.
+
+```bash
+git remote set-url origin git@github.com:thoroki/codyssey-E1-1-workstation.git
+```
+
+변경 결과를 확인했다.
+
+```bash
+git remote -v
+```
+
+변경 후 원격 주소:
+
+```text
+origin  git@github.com:thoroki/codyssey-E1-1-workstation.git (fetch)
+origin  git@github.com:thoroki/codyssey-E1-1-workstation.git (push)
+```
+
+`git remote set-url`을 사용하면 기존 원격 저장소 이름인 `origin`은 그대로 유지하면서 접속 주소만 변경할 수 있다.
+
+### 21.9 SSH 방식 push 테스트
+
+변경사항을 커밋했다.
+
+```bash
+git add .
+git commit -m "docs: add Docker Compose and SSH practice"
+```
+
+SSH 방식으로 GitHub에 push했다.
+
+```bash
+git push
+```
+
+HTTPS 방식에서 사용했던 GitHub 사용자명과 Personal Access Token을 입력하지 않고 push가 정상적으로 완료되었다.
+
+변경사항이 없는 경우 다음과 같이 빈 커밋을 생성하여 SSH push를 테스트할 수 있다.
+
+```bash
+git commit --allow-empty -m "test: verify GitHub SSH authentication"
+git push
+```
+
+### 21.10 최종 상태 확인
+
+```bash
+git status
+git remote -v
+```
+
+확인 결과:
+
+```text
+브랜치가 'origin/main'에 맞게 업데이트된 상태입니다.
+커밋할 사항 없음, 작업 폴더 깨끗함
+```
+
+원격 저장소 주소도 SSH 형식으로 설정된 것을 확인했다.
+
+```text
+git@github.com:thoroki/codyssey-E1-1-workstation.git
+```
+
+### 21.11 HTTPS와 SSH 인증 방식 비교
+
+| 구분 | HTTPS | SSH |
+|---|---|---|
+| 원격 주소 형식 | `https://github.com/...` | `git@github.com:...` |
+| 인증 방법 | Personal Access Token | 공개 키와 개인 키 |
+| GitHub에 등록하는 정보 | 토큰 | 공개 키 |
+| 로컬에 보관하는 정보 | 자격증명 또는 토큰 | 개인 키 |
+| push 시 입력 | 토큰을 요구할 수 있음 | SSH agent 등록 시 별도 입력 최소화 |
+| 보안 주의사항 | 토큰 노출 금지 | 개인 키 노출 금지 |
+
+### 21.12 공개 키와 개인 키의 차이
+
+- 공개 키는 GitHub 계정에 등록한다.
+- 개인 키는 로컬 컴퓨터에만 저장한다.
+- 공개 키가 노출되어도 개인 키 없이는 인증할 수 없다.
+- 개인 키가 노출되면 인증에 악용될 수 있으므로 즉시 폐기하고 새 키를 생성해야 한다.
+- SSH 키에 암호 문구를 설정하면 개인 키가 유출되었을 때 추가적인 보호가 가능하다.
+
+### 관찰 결과
+
+- Ed25519 방식의 SSH 키를 생성할 수 있었다.
+- 공개 키와 개인 키의 역할 차이를 확인했다.
+- 공개 키만 GitHub 계정에 등록했다.
+- SSH agent와 macOS 키체인에 개인 키를 등록했다.
+- `ssh -T git@github.com` 명령으로 GitHub SSH 인증 성공을 확인했다.
+- Git 원격 저장소 주소를 HTTPS에서 SSH 형식으로 변경했다.
+- Personal Access Token을 입력하지 않고 SSH 방식으로 push할 수 있었다.
+- 인증 정보는 저장소 파일이 아니라 사용자 계정의 SSH 키와 GitHub 계정 설정으로 관리된다는 점을 확인했다.
+
+### 수행 결과
+
+![GitHub SSH 인증 및 push 결과](evidence/github/21_github-ssh1.png)
+![GitHub SSH 인증 및 push 결과](evidence/github/21_github-ssh2.png)
 
 
-동작 구조 설계
-*  프로젝트 디렉토리 구조를 어떤 기준으로 구성했는지 설명할 수 있는가?
-*  포트/볼륨 설정을 어떤 방식으로 재현 가능하게 정리했는지 설명할 수 있는가?
 
-핵심 기술 원리 적용
-*  이미지와 컨테이너의 차이를 “빌드/실행/변경” 관점에서 구분해 설명할 수 있는가?
-*  컨테이너 내부 포트로 직접 접속할 수 없는 이유와 필요한 이유를 설명할 수 있는가?
-*  절대 경로/상대 경로를 어떤 상황에서 선택하는지 설명할 수 있는가?
-*  파일 권한 숫자 표기(예: 755, 644)가 어떤 규칙으로 결정되는지 설명할 수 있는가?
 
-심층 인터뷰
-*  “호스트 포트가 이미 사용 중”이라 포트 매핑이 실패한다면, 어떤 순서로 원인을 진단할지 설명할 수 있는가?
-*  컨테이너 삭제 후 데이터가 사라진 경험이 있다면, 이를 방지하기 위한 대안을 설명할 수 있는가?
-*  이 미션에서 가장 어려웠던 지점과, 해결 과정(가설 → 확인 → 조치)을 근거와 함께 설명할 수 있는가?
 
