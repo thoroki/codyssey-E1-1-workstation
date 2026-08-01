@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codyssey-compose-web
+    ports:
+      - "${WEB_PORT}:80"
+    environment:
+      APP_ENV: "${APP_ENV}"
+
+  helper:
+    image: curlimages/curl:latest
+    container_name: codyssey-compose-helper
+    command: ["sleep", "infinity"]
