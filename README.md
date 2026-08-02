@@ -739,14 +739,8 @@ Fine-grained token 설정에서는 다음 상태였다.
 
 Fine-grained token 화면에서 필요한 쓰기 권한을 설정할 수 없어 Personal Access Token classic을 생성했다.
 
-기존 macOS 키체인에 저장된 GitHub 인증정보를 삭제했다.
-
-```bash
-printf "protocol=https\nhost=github.com\n\n" |
-git credential-osxkeychain erase
-```
-
 그다음 새로운 토큰을 사용하여 push를 다시 실행했다.
+
 
 ```bash
 git push -u origin main
